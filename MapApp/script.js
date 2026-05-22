@@ -23,22 +23,48 @@ class Workout {
 }
 
 class Running extends Workout {
+  type = "Running";
+
   constructor(coords, distance, duration, cadence) {
     super();
     this.coords = coords;
     this.distance = distance;
     this.duration = duration;
     this.cadence = cadence;
+    this.calcPace();
+    this.setDescription();
+  }
+
+  calcPace() {
+    this.pace = this.duration / this.distance;
+    return this.pace.toFixed(2);
+  }
+
+  setDescription() {
+    this.description = `${this.type} on ${this.date.toDateString()}`;
   }
 }
 
 class Cycling extends Workout {
+  type = "Cycling";
+
   constructor(coords, distance, duration, elevationGain) {
     super();
     this.coords = coords;
     this.distance = distance;
     this.duration = duration;
     this.elevationGain = elevationGain;
+    this.calcSpeed();
+    this.setDescription();
+  }
+
+  calcSpeed() {
+    this.speed = this.distance / (this.duration / 60);
+    return this.speed.toFixed(2);
+  }
+
+  setDescription() {
+    this.description = `${this.type} on ${this.date.toDateString()}`;
   }
 }
 
@@ -82,11 +108,47 @@ navigator.geolocation.getCurrentPosition(
 );
 
 inputType.addEventListener("change", function () {
-  inputCadence.closest(".form__row").classList.toggle("form__row--hidden");
-  inputElevation.closest(".form__row").classList.toggle("form__row--hidden");
+  const cadenceRow = inputCadence.closest(".form__row");
+  const elevationRow = inputElevation.closest(".form__row");
+
+  // 2. Explicitly add/remove classes based on the actual value
+  if (inputType.value === "running") {
+    cadenceRow.classList.remove("form__row--hidden");
+    elevationRow.classList.add("form__row--hidden");
+  }
+
+  if (inputType.value === "cycling") {
+    cadenceRow.classList.add("form__row--hidden");
+    elevationRow.classList.remove("form__row--hidden");
+  }
 });
 
 form.addEventListener("submit", function (e) {
+  e.preventDefault();
+
+  const type = inputType.value;
+  const distance = Number(inputDistance.value);
+  const duration = Number(inputDuration.value);
+
+  let workout;
+
+  if (inputType.value == "running") {
+    // This code will reset back to running with the correct cadence/elevation options.
+    const cadence = Number(inputCadence.value);
+
+    workout = new Running([lat, lng], distance, duration, cadence);
+  }
+
+  if (inputType.value == "cycling") {
+    const elevationGain = +Number(inputElevation.value);
+
+    workout = new Cycling([lat, lng], distance, duration, elevationGain);
+  }
+
+  workouts.push(workout);
+
+  console.log(workouts);
+
   L.marker([lat, lng])
     .addTo(map)
     .bindPopup(
@@ -100,33 +162,59 @@ form.addEventListener("submit", function (e) {
     )
     .setPopupContent("Workout")
     .openPopup();
-  e.preventDefault();
 
-  const type = inputType.value;
-  const distance = Number(inputDistance.value);
-  const duration = Number(inputDuration.value);
-  const lat = mapEvent.latlng.lat;
-  const lng = mapEvent.latlng.lng;
-  let workout;
+  let html;
 
-  if (inputType.value == "running") {
-    // This code will reset back to running with the correct cadence/elevation options.
-    const cadence = Number(inputCadence.value);
-
-    workout = new Running([lat, lng], distance, duration, cadence);
-    workouts.push(workout);
+  if (workout.type == "Running") {
+    html = ` <li class="workout workout--running" data-id=${workout.id}>
+          <h2 class="workout__title">${workout.description}</h2>
+          <div class="workout__details">
+            <span class="workout__icon">🏃‍♂️</span>
+            <span class="workout__value">${workout.distance}</span>
+            <span class="workout__unit">km</span>
+          </div>
+          <div class="workout__details">
+            <span class="workout__icon">⏱</span>
+            <span class="workout__value">${workout.duration}</span>
+            <span class="workout__unit">min</span>
+          </div>
+          <div class="workout__details">
+            <span class="workout__icon">⚡️</span>
+            <span class="workout__value">${workout.pace}</span>
+            <span class="workout__unit">min/km</span>
+          </div>
+          <div class="workout__details">
+            <span class="workout__icon">🦶🏼</span>
+            <span class="workout__value">${workout.cadence}</span>
+            <span class="workout__unit">spm</span>
+          </div>
+        </li>`;
+  } else if (workout.type == "Cycling") {
+    html = ` <li class="workout workout--cycling" data-id=${workout.id}>
+          <h2 class="workout__title">Cycling on April 5</h2>
+          <div class="workout__details">
+            <span class="workout__icon">🚴‍♀️</span>
+            <span class="workout__value">${workout.distance}</span>
+            <span class="workout__unit">km</span>
+          </div>
+          <div class="workout__details">
+            <span class="workout__icon">⏱</span>
+            <span class="workout__value">${workout.duration}</span>
+            <span class="workout__unit">min</span>
+          </div>
+          <div class="workout__details">
+            <span class="workout__icon">⚡️</span>
+            <span class="workout__value">${workout.speed}</span>
+            <span class="workout__unit">km/h</span>
+          </div>
+          <div class="workout__details">
+            <span class="workout__icon">⛰</span>
+            <span class="workout__value">${workout.elevationGain}</span>
+            <span class="workout__unit">m</span>
+          </div>;`;
   }
 
-  if (inputType.value == "cycling") {
-    // This code will reset back to running with the correct cadence/elevation options.
-    const elevationGain = +Number(inputElevation.value);
+  form.insertAdjacentHTML("afterend", html);
 
-    workout = new Running([lat, lng], distance, duration, elevationGain);
-    workouts.push(workout);
-  }
   form.reset();
 });
-
-const run1 = new Running([39, -12], 5.2, 24, 148);
-const cycl1 = new Cycling([39, -12], 53, 44, 518);
-console.log(run1, cycl1);
